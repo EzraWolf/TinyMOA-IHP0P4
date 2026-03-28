@@ -10,7 +10,7 @@ project:
   # One tile is ~167x108um
   # Largest size is 6 wide for this setup, not 8 like normal. Valid sizes:
   # Valid sizes: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2
-  tiles: "6x2"
+  tiles: "2x2"
 
   # Top module must start with "tt_um_"
   top_module:  "tt_um_tinymoa_ihp0p4"
@@ -18,40 +18,41 @@ project:
   # Project files
   source_files:
     - "project.v"
-    - "multiply.v"
+    - "dcim.v"
+    - "compressor.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "template"
-  ui[1]: ""
-  ui[2]: ""
-  ui[3]: ""
-  ui[4]: ""
-  ui[5]: ""
-  ui[6]: ""
-  ui[7]: ""
+  ui[0]: "ctl_addr[0]"
+  ui[1]: "ctl_addr[1]"
+  ui[2]: "ctl_addr[2]"
+  ui[3]: "ctl_addr[3]"
+  ui[4]: "ctl_addr[4]"
+  ui[5]: "ctl_addr[5]"
+  ui[6]: "ctl_read"
+  ui[7]: "ctl_write"
 
   # Outputs
-  uo[0]: ""
-  uo[1]: ""
-  uo[2]: ""
-  uo[3]: ""
-  uo[4]: ""
-  uo[5]: ""
-  uo[6]: ""
-  uo[7]: ""
+  uo[0]: "dbg_state[0]"
+  uo[1]: "dbg_state[1]"
+  uo[2]: "dbg_state[2]"
+  uo[3]: "ctl_ready"
+  uo[4]: "mem_write"
+  uo[5]: "mem_read"
+  uo[6]: "mem_addr[0]"
+  uo[7]: "mem_addr[1]"
 
   # Bidirectional pins
-  uio[0]: ""
-  uio[1]: ""
-  uio[2]: ""
-  uio[3]: ""
-  uio[4]: ""
-  uio[5]: ""
-  uio[6]: ""
-  uio[7]: ""
+  uio[0]: "data[0]"
+  uio[1]: "data[1]"
+  uio[2]: "data[2]"
+  uio[3]: "data[3]"
+  uio[4]: "data[4]"
+  uio[5]: "data[5]"
+  uio[6]: "data[6]"
+  uio[7]: "data[7]"
 
 # Do not change!
 yaml_version: 6

@@ -25,34 +25,34 @@ project:
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "ctl_addr[0]"
-  ui[1]: "ctl_addr[1]"
-  ui[2]: "ctl_addr[2]"
-  ui[3]: "ctl_addr[3]"
-  ui[4]: "ctl_addr[4]"
-  ui[5]: "ctl_addr[5]"
-  ui[6]: "ctl_read"
-  ui[7]: "ctl_write"
+  ui[0]: "data_in[0]"
+  ui[1]: "data_in[1]"
+  ui[2]: "data_in[2]"
+  ui[3]: "data_in[3]"
+  ui[4]: "data_in[4]"
+  ui[5]: "data_in[5]"
+  ui[6]: "data_in[6]"
+  ui[7]: "data_in[7]"
 
   # Outputs
-  uo[0]: "dbg_state[0]"
-  uo[1]: "dbg_state[1]"
-  uo[2]: "dbg_state[2]"
-  uo[3]: "ctl_ready"
-  uo[4]: "mem_write"
-  uo[5]: "mem_read"
-  uo[6]: "mem_addr[0]"
-  uo[7]: "mem_addr[1]"
+  uo[0]: "result[0]"
+  uo[1]: "result[1]"
+  uo[2]: "result[2]"
+  uo[3]: "result[3]"
+  uo[4]: "result[4]"
+  uo[5]: "result[5]"
+  uo[6]: "result[6] (zero)"
+  uo[7]: "result[7] (zero)"
 
   # Bidirectional pins
-  uio[0]: "data[0]"
-  uio[1]: "data[1]"
-  uio[2]: "data[2]"
-  uio[3]: "data[3]"
-  uio[4]: "data[4]"
-  uio[5]: "data[5]"
-  uio[6]: "data[6]"
-  uio[7]: "data[7]"
+  uio[0]: "wen (in)"
+  uio[1]: "execute (in)"
+  uio[2]: "read_next (in)"
+  uio[3]: "acc_clear (in)"
+  uio[4]: "col_sel[0] (out)"
+  uio[5]: "col_sel[1] (out)"
+  uio[6]: "col_sel[2] (out)"
+  uio[7]: "done (out)"
 
 # Do not change!
 yaml_version: 6

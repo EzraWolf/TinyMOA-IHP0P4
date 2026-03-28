@@ -15,6 +15,7 @@ async def setup(dut):
     dut.data_in.value = 0
     dut.wen.value = 0
     dut.execute.value = 0
+    dut.acc_clear.value = 0
     dut.col_sel.value = 0
     dut.nrst.value = 0
     await ClockCycles(dut.clk, 1)
@@ -84,14 +85,24 @@ async def test_all_zeros(dut):
 
 @cocotb.test()
 async def test_identity(dut):
-    """Identity weight matrix. Each col sees exactly 1 XNOR match."""
+    """Identity weight matrix with exact expected values per column.
+    XNOR(weight_reg[col], 0xFF) has exactly 1 bit set per column.
+    DCIM-S pairs: in[0]&in[1], in[2]|in[3], in[4]&in[5], in[6]|in[7].
+    AND pair with one 1-bit: 0 if partner is 0. OR pair with one 1-bit: 1.
+    bit 0 -> AND pair -> 0    bit 4 -> AND pair -> 0
+    bit 1 -> AND pair -> 0    bit 5 -> AND pair -> 0
+    bit 2 -> OR pair  -> 1    bit 6 -> OR pair  -> 1
+    bit 3 -> OR pair  -> 1    bit 7 -> OR pair  -> 1
+    """
     await setup(dut)
     await load_weights(dut, [1 << i for i in range(ARRAY_DIM)])
     await do_execute(dut, 0xFF)
     results = await read_all(dut)
-    expected = results[0]
-    for c, val in enumerate(results):
-        assert val == expected, f"col {c}: got {val}, expected {expected}"
+    expected = [0, 0, 1, 1, 0, 0, 1, 1]
+    for c in range(ARRAY_DIM):
+        assert results[c] == expected[c], (
+            f"col {c}: got {results[c]}, expected {expected[c]}"
+        )
 
 
 @cocotb.test()
@@ -116,11 +127,10 @@ async def test_weight_reuse(dut):
     await do_execute(dut, 0xFF)
     r1 = await read_all(dut)
 
-    # Reset accumulators, reload same weights
-    dut.nrst.value = 0
+    # Clear accumulators only, reuse cached weights
+    dut.acc_clear.value = 1
     await ClockCycles(dut.clk, 1)
-    dut.nrst.value = 1
-    await load_weights(dut, [0xFF] * ARRAY_DIM)
+    dut.acc_clear.value = 0
     await do_execute(dut, 0x00)
     r2 = await read_all(dut)
 

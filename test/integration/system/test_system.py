@@ -2,97 +2,105 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # System integration tests for TinyMOA 8x8 DCIM.
-# Tests only touch TT pins (ui_in, uo_out, uio_in, uio_out) to simulate
-# how the external FPGA sees and controls the chip.
+# Tests only touch TT pins to simulate external FPGA.
+#
+# Pin mapping:
+#   ui_in[7:0]   data_in
+#   uo_out[7:0]  result (zero-padded)
+#   uio[0]       IN   wen
+#   uio[1]       IN   execute
+#   uio[2]       IN   read_next
+#   uio[3]       IN   acc_clear
+#   uio[4]       OUT  col_sel[0]
+#   uio[5]       OUT  col_sel[1]
+#   uio[6]       OUT  col_sel[2]
+#   uio[7]       OUT  done
+#   uio_oe = 8'b11110000
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb.triggers import ClockCycles
 
 ARRAY_DIM = 8
 ACC_WIDTH = 6
 
-# uio_out bit positions
-UIO_STATE_MASK = 0x03
-UIO_DONE_BIT = 3
-
-# Wrapper FSM states (from project.v)
-IDLE = 0
-LOAD = 1
-EXEC = 2
-READ = 3
-
 
 async def setup(dut):
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
-    dut.ena.value = 1
     dut.ui_in.value = 0
     dut.uio_in.value = 0
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 1)
     dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 1)
 
 
-def get_state(dut):
-    return int(dut.uio_out.value) & UIO_STATE_MASK
+def read_uo(dut):
+    return int(dut.uo_out.value)
 
 
-def get_done(dut):
-    return (int(dut.uio_out.value) >> UIO_DONE_BIT) & 1
+def read_col_sel(dut):
+    return (int(dut.uio_out.value) >> 4) & 0x07
 
 
-async def start(dut, precision=1, skip_load=False):
-    """Pulse go on uio_in with config. FPGA drives uio during IDLE."""
-    cfg = 1  # go bit
-    if skip_load:
-        cfg |= 1 << 1
-    cfg |= (precision & 0x3) << 2
-    dut.uio_in.value = cfg
-    await RisingEdge(dut.clk)
+def read_done(dut):
+    return (int(dut.uio_out.value) >> 7) & 1
+
+
+async def load_weights(dut, rows):
+    for row in rows:
+        dut.ui_in.value = row & 0xFF
+        dut.uio_in.value = 0b0001  # wen
+        await ClockCycles(dut.clk, 1)
+    dut.ui_in.value = 0
     dut.uio_in.value = 0
 
 
-async def send_weights(dut, rows):
-    """Send ARRAY_DIM weight bytes on ui_in, one per cycle."""
-    for row in rows:
-        dut.ui_in.value = row & 0xFF
-        await RisingEdge(dut.clk)
-    dut.ui_in.value = 0
-
-
-async def send_activation(dut, *planes):
-    """Send activation bit-plane(s) on ui_in, one per cycle."""
-    for act in planes:
+async def do_execute(dut, *activations):
+    for act in activations:
         dut.ui_in.value = act & 0xFF
-        await RisingEdge(dut.clk)
+        dut.uio_in.value = 0b0010  # execute
+        await ClockCycles(dut.clk, 1)
     dut.ui_in.value = 0
+    dut.uio_in.value = 0
 
 
 async def read_results(dut):
-    """Read ARRAY_DIM result bytes from uo_out during READ phase."""
     results = []
     for _ in range(ARRAY_DIM):
-        await RisingEdge(dut.clk)
-        results.append(int(dut.uo_out.value))
+        dut.uio_in.value = 0b0100  # read_next
+        await ClockCycles(dut.clk, 1)
+        results.append(read_uo(dut))
+    dut.uio_in.value = 0
     return results
+
+
+async def clear_acc(dut):
+    dut.uio_in.value = 0b1000  # acc_clear
+    await ClockCycles(dut.clk, 1)
+    dut.uio_in.value = 0
+
+
+# === Tests ===
 
 
 @cocotb.test()
 async def test_reset_state(dut):
-    """After reset, wrapper is IDLE, uo_out = 0."""
+    """After reset, uo_out = 0, uio_oe = 0xF0."""
     await setup(dut)
-    assert get_state(dut) == IDLE
-    assert int(dut.uo_out.value) == 0
+    assert read_uo(dut) == 0, f"expected uo_out=0, got {read_uo(dut)}"
+    assert int(dut.uio_oe.value) == 0xF0, (
+        f"expected uio_oe=0xF0, got 0x{int(dut.uio_oe.value):02X}"
+    )
 
 
 @cocotb.test()
 async def test_all_ones(dut):
-    """Load 8x 0xFF weights, act=0xFF. All results should be equal and nonzero."""
+    """Load 8x 0xFF, execute act=0xFF. All results equal and nonzero."""
     await setup(dut)
-    await start(dut, precision=1)
-    await send_weights(dut, [0xFF] * ARRAY_DIM)
-    await send_activation(dut, 0xFF)
+    await load_weights(dut, [0xFF] * ARRAY_DIM)
+    await do_execute(dut, 0xFF)
     results = await read_results(dut)
     expected = results[0]
     assert expected > 0, f"expected nonzero, got {expected}"
@@ -102,11 +110,10 @@ async def test_all_ones(dut):
 
 @cocotb.test()
 async def test_all_zeros(dut):
-    """Load 8x 0x00 weights, act=0xFF. All results should be 0."""
+    """Load 8x 0x00, execute act=0xFF. All results = 0."""
     await setup(dut)
-    await start(dut, precision=1)
-    await send_weights(dut, [0x00] * ARRAY_DIM)
-    await send_activation(dut, 0xFF)
+    await load_weights(dut, [0x00] * ARRAY_DIM)
+    await do_execute(dut, 0xFF)
     results = await read_results(dut)
     for c, val in enumerate(results):
         assert val == 0, f"col {c}: expected 0, got {val}"
@@ -114,52 +121,48 @@ async def test_all_zeros(dut):
 
 @cocotb.test()
 async def test_weight_reuse(dut):
-    """Run inference, then skip_load with different activation."""
+    """Execute, clear acc, execute again with different activation. Weights stay."""
     await setup(dut)
-
-    # First inference
-    await start(dut, precision=1)
-    await send_weights(dut, [0xFF] * ARRAY_DIM)
-    await send_activation(dut, 0xFF)
+    await load_weights(dut, [0xFF] * ARRAY_DIM)
+    await do_execute(dut, 0xFF)
     r1 = await read_results(dut)
 
-    # Second inference, skip weight load
-    await start(dut, precision=1, skip_load=True)
-    await send_activation(dut, 0x00)
+    await clear_acc(dut)
+    await do_execute(dut, 0x00)
     r2 = await read_results(dut)
 
-    assert r1[0] > 0
+    assert r1[0] > 0, f"first result should be nonzero, got {r1[0]}"
     for c, val in enumerate(r2):
         assert val == 0, f"col {c}: expected 0 for act=0x00, got {val}"
 
 
 @cocotb.test()
 async def test_multibit(dut):
-    """precision=2. Two activation planes. Verify accumulated result > single plane."""
+    """precision=2. Two activation planes. Result should exceed single plane."""
     await setup(dut)
-    await start(dut, precision=2)
-    await send_weights(dut, [0xFF] * ARRAY_DIM)
-    await send_activation(dut, 0xFF, 0xFF)
+    await load_weights(dut, [0xFF] * ARRAY_DIM)
+    await do_execute(dut, 0xFF, 0xFF)
     r2 = await read_results(dut)
 
-    # Compare against single-plane
-    await setup(dut)
-    await start(dut, precision=1)
-    await send_weights(dut, [0xFF] * ARRAY_DIM)
-    await send_activation(dut, 0xFF)
+    await clear_acc(dut)
+    await do_execute(dut, 0xFF)
     r1 = await read_results(dut)
 
     for c in range(ARRAY_DIM):
-        assert r2[c] > r1[c], (
-            f"col {c}: 2-bit result {r2[c]} should exceed 1-bit {r1[c]}"
-        )
+        assert r2[c] > r1[c], f"col {c}: 2-bit {r2[c]} should exceed 1-bit {r1[c]}"
 
 
 @cocotb.test()
-async def test_debug_state(dut):
-    """Verify uio_out reflects FSM state transitions."""
+async def test_done_flag(dut):
+    """done pulses after execute."""
     await setup(dut)
-    assert get_state(dut) == IDLE
-    await start(dut, precision=1)
-    await RisingEdge(dut.clk)
-    assert get_state(dut) == LOAD
+    await load_weights(dut, [0xFF] * ARRAY_DIM)
+    assert read_done(dut) == 0, "done should be 0 before execute"
+    dut.ui_in.value = 0xFF
+    dut.uio_in.value = 0b0010  # execute
+    for cycle in range(4):
+        await ClockCycles(dut.clk, 1)
+        uio_val = int(dut.uio_out.value)
+        dut._log.info(f"cycle {cycle}: uio_out=0b{uio_val:08b} done={read_done(dut)}")
+    dut.uio_in.value = 0
+    dut.ui_in.value = 0

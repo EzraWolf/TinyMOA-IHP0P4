@@ -8,6 +8,7 @@ module tb_dcim (
     input  [7:0] data_in,
     input        wen,
     input        execute,
+    input        acc_clear,
 
     input  [2:0] col_sel,
     output [5:0] result,
@@ -27,6 +28,7 @@ module tb_dcim (
         .data_in  (data_in),
         .wen      (wen),
         .execute  (execute),
+        .acc_clear(acc_clear),
         .col_sel  (col_sel),
         .result   (result),
         .dbg_done (dbg_done)

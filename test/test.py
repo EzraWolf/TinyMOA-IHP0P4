@@ -1,25 +1,44 @@
-# SPDX-FileCopyrightText: © 2026 Ezra Wolf
-# SPDX-License-Identifier: Apache-2.0
+import pytest
+from pathlib import Path
+from cocotb_test import simulator
 
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+PROJECT_DIR = Path(__file__).parent.resolve()
+SRC_DIR = PROJECT_DIR.parent / "src"
+SIM_BUILD = PROJECT_DIR / "sim_build"
 
 
-@cocotb.test()
-async def test_reset(dut):
-    """Verify DCIM comes out of reset in IDLE (dbg_state = 0)."""
-    clock = Clock(dut.clk, 10, units="us")
-    cocotb.start_soon(clock.start())
+def test_dcim_unit():
+    simulator.run(
+        verilog_sources=[
+            str(SRC_DIR / "dcim.v"),
+            str(SRC_DIR / "compressor_8.v"),
+            str(PROJECT_DIR / "unit" / "dcim" / "tb_dcim.v"),
+        ],
+        toplevel="tb_dcim",
+        module="unit.dcim.test_dcim",
+        simulator="icarus",
+        defines=["SINGLE_APPROX_COMPRESSOR"],
+        sim_build=str(SIM_BUILD / "dcim"),
+        python_search=[str(PROJECT_DIR)],
+    )
 
-    dut.ena.value = 1
-    dut.ui_in.value = 0
-    dut.uio_in.value = 0
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 1)
 
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 1)
+def test_system_integration():
+    simulator.run(
+        verilog_sources=[
+            str(SRC_DIR / "project.v"),
+            str(SRC_DIR / "dcim.v"),
+            str(SRC_DIR / "compressor_8.v"),
+            str(PROJECT_DIR / "integration" / "system" / "tb_system.v"),
+        ],
+        toplevel="tb_system",
+        module="integration.system.test_system",
+        simulator="icarus",
+        defines=["SINGLE_APPROX_COMPRESSOR"],
+        sim_build=str(SIM_BUILD / "system"),
+        python_search=[str(PROJECT_DIR)],
+    )
 
-    dbg_state = dut.uo_out.value.integer & 0x07
-    assert dbg_state == 0, f"Expected IDLE (0), got {dbg_state}"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

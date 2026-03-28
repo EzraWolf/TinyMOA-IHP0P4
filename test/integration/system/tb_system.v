@@ -1,12 +1,14 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-module tb ();
+module tb_system ();
+    `ifdef COCOTB_SIM
     initial begin
-        $dumpfile("tb.fst");
-        $dumpvars(0, tb);
+        $dumpfile("tb_system.fst");
+        $dumpvars(0, tb_system);
         #1;
     end
+    `endif
 
     reg        clk;
     reg        rst_n;

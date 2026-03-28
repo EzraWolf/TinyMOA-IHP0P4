@@ -9,7 +9,7 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-Digital compute-in-memory (DCIM) core.
+Digital compute-in-memory (DCIM) 16x16 array core.
 
 ## How to test
 

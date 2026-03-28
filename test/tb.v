@@ -17,7 +17,7 @@ module tb ();
     wire [7:0] uio_out;
     wire [7:0] uio_oe;
 
-    tt_um_tinymoa_ihp0p4 dut (
+    tt_um_tinymoa_ihp0p4_16x16 dut (
         .ui_in   (ui_in),
         .uo_out  (uo_out),
         .uio_in  (uio_in),

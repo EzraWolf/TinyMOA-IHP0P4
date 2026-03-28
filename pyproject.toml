@@ -1,7 +1,7 @@
 [project]
 name = "tinymoa-ihp0p4"
 version = "0.1.0"
-description = "Digital compute-in-memory accelerator core."
+description = "16x16 digital compute-in-memory (DCIM) core on an experimental IHP SG13G2 CMOS5L shuttle."
 readme = "README.md"
 requires-python = ">=3.12"
 

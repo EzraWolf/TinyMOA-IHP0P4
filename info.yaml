@@ -1,9 +1,9 @@
 # Tiny Tapeout project information
 project:
-  title:        "TinyMOA-IHP0P4"
+  title:        "TinyMOA-IHP0P4-16x16"
   author:       "Ezra Wolf"
   discord:      "erstfeld"
-  description:  "Digital compute-in-memory accelerator core."
+  description:  "16x16 digital compute-in-memory (DCIM) core on an experimental IHP SG13G2 CMOS5L shuttle."
   language:     "Verilog"
   clock_hz:     50000000
 
@@ -13,13 +13,13 @@ project:
   tiles: "2x2"
 
   # Top module must start with "tt_um_"
-  top_module:  "tt_um_tinymoa_ihp0p4"
+  top_module:  "tt_um_tinymoa_ihp0p4_16x16"
 
   # Project files
   source_files:
     - "project.v"
     - "dcim.v"
-    - "compressor.v"
+    - "compressor_8.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
